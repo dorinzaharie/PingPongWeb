@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joc Tenis de Masă</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #333;
+      color: white;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    canvas {
+      border: 2px solid #fff;
+      background-color: #000;
+    }
+
+    .scoreboard {
+      margin: 20px 0;
+      font-size: 20px;
+    }
+
+    /* Stiluri pentru butoane */
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin: 10px 0;
+      width: 200px;  /* Setează o lățime constantă pentru butoane */
+    }
+
+    /* Stiluri pentru butonul de logout */
+    #logoutButton {
+      background-color: #f44336;
+    }
+
+    .gameOverMessage {
+      font-size: 24px;
+      color: yellow;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Ping Pong</h1>
+  <div class="scoreboard">
+    <span id="playerScore">Jucător 1: 0</span> | <span id="aiScore">Jucător 2: 0</span>
+  </div>
+  <button id="aiModeButton">Joc cu AI</button>
+  <button id="twoPlayerButton">Joc cu 2 jucători</button>
+  <button id="startButton">Start</button>
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+  <div id="gameOverMessage" class="gameOverMessage" style="display:none;"></div>
+  <!-- Butonul de logout -->
+  <button id="logoutButton" onclick="logout()">Logout</button>
+  <a href="/chat"><button>Go to Chat</button></a>
+</div>
+
+<script>
+  const startButton = document.getElementById('startButton');
+  const aiModeButton = document.getElementById('aiModeButton');
+  const twoPlayerButton = document.getElementById('twoPlayerButton');
+  const logoutButton = document.getElementById('logoutButton');
+  const gameOverMessage = document.getElementById('gameOverMessage');
+  const player1ScoreDisplay = document.getElementById('playerScore');
+  const aiScoreDisplay = document.getElementById('aiScore');
+
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const paddleHeight = 100;
+  const paddleWidth = 10;
+  const ballSize = 10;
+
+  let player1Score = 0;
+  let player2Score = 0;
+  let ballX = canvas.width / 2 - ballSize / 2;
+  let ballY = canvas.height / 2 - ballSize / 2;
+  let ballSpeedX = 3;
+  let ballSpeedY = 3;
+  let player1Y = canvas.height / 2 - paddleHeight / 2;
+  let player2Y = canvas.height / 2 - paddleHeight / 2;
+  let player1Up = false;
+  let player1Down = false;
+  let player2Up = false;
+  let player2Down = false;
+  let isAiMode = false;
+  let gameStarted = false;
+
+  // Functia de logout
+  function logout() {
+    // Redirecționează utilizatorul la pagina de login
+    window.location.href = '/login';  // Asigură-te că /login este ruta corectă a paginii tale de login
+  }
+
+  // Actualizează scorul
+  function updateScore() {
+    player1ScoreDisplay.textContent = 'Jucător 1: ' + player1Score;
+    aiScoreDisplay.textContent = isAiMode ? 'AI: ' + player2Score : 'Jucător 2: ' + player2Score;
+  }
+
+  // Desenăm toate elementele
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+
+    // Desenează mingea
+    ctx.fillRect(ballX, ballY, ballSize, ballSize);
+
+    // Desenează paletele
+    ctx.fillRect(0, player1Y, paddleWidth, paddleHeight);
+    ctx.fillRect(canvas.width - paddleWidth, player2Y, paddleWidth, paddleHeight);
+
+    updateScore();
+  }
+
+  // Mișcarea mingii
+  function moveBall() {
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    // Coliziune cu marginile sus și jos
+    if (ballY <= 0 || ballY + ballSize >= canvas.height) {
+      ballSpeedY = -ballSpeedY;
+    }
+
+    // Coliziune cu paleta jucătorului 1
+    if (ballX <= paddleWidth && ballY + ballSize > player1Y && ballY < player1Y + paddleHeight) {
+      ballSpeedX = -ballSpeedX;
+    }
+
+    // Coliziune cu paleta jucătorului 2
+    if (ballX + ballSize >= canvas.width - paddleWidth && ballY + ballSize > player2Y && ballY < player2Y + paddleHeight) {
+      ballSpeedX = -ballSpeedX;
+    }
+
+    // Dacă mingea iese din joc
+    if (ballX <= 0) {
+      player2Score++;
+      if (player2Score === 10) {
+        gameOver('AI câștigă!');
+      } else {
+        resetGame();
+      }
+    } else if (ballX + ballSize >= canvas.width) {
+      player1Score++;
+      if (player1Score === 10) {
+        gameOver('Jucătorul 1 câștigă!');
+      } else {
+        resetGame();
+      }
+    }
+  }
+
+  // Mișcarea paletelor
+  function movePaddles() {
+    if (player1Up && player1Y > 0) {
+      player1Y -= 5;
+    } else if (player1Down && player1Y + paddleHeight < canvas.height) {
+      player1Y += 5;
+    }
+
+    if (isAiMode) {
+      if (ballY < player2Y + paddleHeight / 2) {
+        player2Y -= 3;
+      } else if (ballY > player2Y + paddleHeight / 2) {
+        player2Y += 3;
+      }
+    } else {
+      if (player2Up && player2Y > 0) {
+        player2Y -= 5;
+      } else if (player2Down && player2Y + paddleHeight < canvas.height) {
+        player2Y += 5;
+      }
+    }
+  }
+
+  // Resetăm jocul
+  function resetGame(fullReset = false) {
+    ballX = canvas.width / 2 - ballSize / 2;
+    ballY = canvas.height / 2 - ballSize / 2;
+    ballSpeedX = 3;
+    ballSpeedY = 3;
+    player1Y = canvas.height / 2 - paddleHeight / 2;
+    player2Y = canvas.height / 2 - paddleHeight / 2;
+
+    if (fullReset) {
+      player1Score = 0;
+      player2Score = 0;
+      updateScore();
+    }
+  }
+
+
+  // Afișăm mesajul de game over
+  function gameOver(message) {
+    gameOverMessage.textContent = message;
+    gameOverMessage.style.display = 'block';
+    gameStarted = false;
+    resetGame(true); // Resetează complet jocul, inclusiv scorurile
+  }
+
+  // Loop-ul jocului
+  function gameLoop() {
+    if (gameStarted) {
+      moveBall();
+      movePaddles();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+  }
+
+  // Apăsarea tastelor
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowUp') {
+      player1Up = true;
+    } else if (e.key === 'ArrowDown') {
+      player1Down = true;
+    }
+
+    if (e.key === 'w') {
+      player2Up = true;
+    } else if (e.key === 's') {
+      player2Down = true;
+    }
+  });
+
+  window.addEventListener('keyup', function(e) {
+    if (e.key === 'ArrowUp') {
+      player1Up = false;
+    } else if (e.key === 'ArrowDown') {
+      player1Down = false;
+    }
+
+    if (e.key === 'w') {
+      player2Up = false;
+    } else if (e.key === 's') {
+      player2Down = false;
+    }
+  });
+
+  // Start buton
+  startButton.addEventListener('click', function() {
+    if (!gameStarted) {  // Dacă jocul nu este deja început
+      gameStarted = true;
+      gameOverMessage.style.display = 'none';  // Ascunde mesajul de "Game Over"
+      resetGame();  // Resetează jocul (mingea, paletele, scorurile)
+      gameLoop();  // Începe loop-ul jocului
+    }
+  });
+
+  // Mod de joc cu AI
+  aiModeButton.addEventListener('click', function() {
+    if (!gameStarted) {  // Verifică dacă jocul nu a început încă
+      isAiMode = true;  // Schimbă la AI mode
+      resetGame(true);  // Resetează jocul (scoruri, palete, mingea)
+      gameOverMessage.style.display = 'none';  // Ascunde mesajul de Game Over
+    }
+  });
+
+  // Mod de joc cu 2 jucători
+  twoPlayerButton.addEventListener('click', function() {
+    if (!gameStarted) {  // Verifică dacă jocul nu a început încă
+      isAiMode = false;  // Schimbă la 2 player mode
+      resetGame(true);  // Resetează jocul (scoruri, palete, mingea)
+      gameOverMessage.style.display = 'none';  // Ascunde mesajul de Game Over
+    }
+  });
+
+</script>
+</body>
+</html>

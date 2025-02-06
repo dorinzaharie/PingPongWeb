@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <script>
+        let stompClient = null;
+
+        function connect() {
+            let socket = new SockJS('http://localhost:8080/chat');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+                stompClient.subscribe('/topic/messages', function (message) {
+                    let msg = JSON.parse(message.body);
+                    let newMessage = document.createElement('p');
+                    newMessage.textContent = `${msg.sender}: ${msg.content}`;
+                    document.getElementById("messages").appendChild(newMessage);
+                });
+            }, function(error) {
+                console.error("WebSocket connection failed: " + error);
+                alert("Conexiunea WebSocket a eșuat.");
+            });
+        }
+
+        function sendMessage() {
+            let sender = document.getElementById("sender").value;
+            let content = document.getElementById("content").value;
+
+            if (!sender || !content) {
+                alert("Te rog completează numele și mesajul!");
+                return;
+            }
+
+            let message = { sender: sender, content: content };
+            stompClient.send("/app/chat", {}, JSON.stringify(message));
+        }
+
+        window.onload = connect;
+    </script>
+</head>
+<body>
+<h1>Chat WebSocket</h1>
+<input type="text" id="sender" placeholder="Nume">
+<input type="text" id="content" placeholder="Mesaj">
+<button onclick="sendMessage()">Trimite</button>
+<div id="messages"></div>
+</body>
+</html>
